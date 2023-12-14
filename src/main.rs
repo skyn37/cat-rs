@@ -4,7 +4,6 @@ use std::env::Args;
 use std::fs::File;
 
 use std::io;
-use std::io::Stdin;
 use std::io::IsTerminal;
 use std::io::BufReader;
 use std::io::BufRead;
@@ -14,7 +13,6 @@ use std::iter::Skip;
 
 #[derive(Debug)]
 struct Options {
-
     number_to_blank: bool,
     number_to_nonblank: bool,
     lines_empty_trunk: bool,
@@ -26,6 +24,11 @@ fn main() {
 
     let  args: Skip<Args> = env::args().skip(1);
     let options = from_args_options(args);
+    let stdin = io::stdin();
+    let test = stdin.is_terminal();
+    println!("{test:?}    triggered !!!");
+
+
     handle_files(options);
 }
 
@@ -36,45 +39,69 @@ fn handle_files(options: Options) {
     println!("*********************\n\n");
 
     let mut number_for_lines = 0;
+    
+    let input = io::stdin().lock();
+    let bufIn = BufReader::new(input);
+        //print_type_of(&bufIn);
+    cat(number_for_lines, bufIn, &options);
 
 
-    for path in options.files_to_open {
+    for path in &options.files_to_open {
         let f = File::open(path.clone()).expect("Unable to open file");
         let f = BufReader::new(f);
-        let mut prev_line = String::from("!!!"); // just a placeholder string
-        for line in f.lines().peekable() {
-            let line = line.expect("Unable to read line");
 
-            if options.lines_empty_trunk {
-                if prev_line == "" && line == "" {
-                    continue 
-                } else {
-                    prev_line = String::from("!!!"); // just a placeholder string 
-                }
+        cat(number_for_lines, f, &options);
 
-                if line == "" {
-                    prev_line = line.clone();
-                }
-            }
-
-            if options.number_to_blank {
-                number_for_lines += 1;
-                if line.is_empty() && options.number_to_nonblank {
-                    println!("{}", line)
-                } else {
-                    println!("     {} {}", number_for_lines, line);
-
-                }
-            } else {
-                println!("{:X}", line)
-            }
-            //  println!("Line: {}", line);
-        }       
-        println!("{path:?}");
     }
 
 }
 
+
+
+fn cat<T: std::io::Read>(mut number_for_lines: usize, b: BufReader<T>, options: &Options) {
+    let mut prev_line = String::from("!!!"); // just a placeholder string
+    for line in b.lines() {
+
+        match line {
+            Ok(line) => {
+                if options.lines_empty_trunk {
+                    if prev_line == "" && line == "" {
+                        continue 
+                    } else {
+                        prev_line = String::from("!!!"); // just a placeholder string 
+                    }
+
+                    if line == "" {
+                        prev_line = line.clone();
+                    }
+                } 
+
+                if options.number_to_blank {
+                    number_for_lines += 1;
+                    if line.is_empty() && options.number_to_nonblank {
+                        println!("{}", line)
+                    } else {
+                        println!("     {} {}", number_for_lines, line);
+
+                    }
+                } else {
+                    println!("{}", line)
+                }
+            },
+            Err(e) => {
+                println!("Error has occured   {e}:?")
+            }
+
+        }
+
+
+
+
+        //  println!("Line: {}", line);
+    } 
+
+
+}
 
 
 fn from_args_options(mut args: Skip<Args>) -> Options {
@@ -84,6 +111,7 @@ fn from_args_options(mut args: Skip<Args>) -> Options {
         lines_empty_trunk: false,
         files_to_open: vec![],
     };
+
 
 
     while let Some(arg) = args.next() {
@@ -106,5 +134,7 @@ fn from_args_options(mut args: Skip<Args>) -> Options {
     options
 }
 
-
+fn print_type_of<T>(_: &T) {
+    println!("{}", std::any::type_name::<T>())
+}
 
