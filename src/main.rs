@@ -24,9 +24,6 @@ fn main() {
 
     let  args: Skip<Args> = env::args().skip(1);
     let options = from_args_options(args);
-    let stdin = io::stdin();
-    let test = stdin.is_terminal();
-    println!("{test:?}    triggered !!!");
 
 
     handle_files(options);
@@ -40,17 +37,21 @@ fn handle_files(options: Options) {
 
     let mut number_for_lines = 0;
     
-    let input = io::stdin().lock();
-    let bufIn = BufReader::new(input);
-        //print_type_of(&bufIn);
-    cat(number_for_lines, bufIn, &options);
+    let mut input = io::stdin();
+    
+    if !input.is_terminal() {
+        //input = input.lock();
+        let bufIn = BufReader::new(input);
+        cat(&mut number_for_lines, bufIn, &options);
+    }
+
 
 
     for path in &options.files_to_open {
         let f = File::open(path.clone()).expect("Unable to open file");
         let f = BufReader::new(f);
 
-        cat(number_for_lines, f, &options);
+        cat(&mut number_for_lines, f, &options);
 
     }
 
@@ -58,7 +59,7 @@ fn handle_files(options: Options) {
 
 
 
-fn cat<T: std::io::Read>(mut number_for_lines: usize, b: BufReader<T>, options: &Options) {
+fn cat<T: std::io::Read>(mut number_for_lines: &mut usize, b: BufReader<T>, options: &Options) {
     let mut prev_line = String::from("!!!"); // just a placeholder string
     for line in b.lines() {
 
@@ -77,7 +78,7 @@ fn cat<T: std::io::Read>(mut number_for_lines: usize, b: BufReader<T>, options: 
                 } 
 
                 if options.number_to_blank {
-                    number_for_lines += 1;
+                    *number_for_lines += 1;
                     if line.is_empty() && options.number_to_nonblank {
                         println!("{}", line)
                     } else {
